@@ -8,19 +8,14 @@
 
 typedef int (job_fn_t)(void*);
 
-/*
-typedef struct {
-	void* data;
-	job_fn_t activity;
-} job_t;
-*/
+//Convenience typedefs
 typedef std::function<void()> job_t;
 typedef std::unique_lock<std::mutex> ulock;
 
 class ThreadPool {
 public:
 	ThreadPool(int thread_count);
-	ThreadPool() : ThreadPool(std::thread::hardware_concurrency()){};
+	ThreadPool() : ThreadPool(std::max(2u, std::thread::hardware_concurrency())){};
 	~ThreadPool() {if(!stopped) shutdown();};
 
 	int thread_count;
