@@ -6,8 +6,6 @@
 #include <functional>
 #include <condition_variable>
 
-typedef int (job_fn_t)(void*);
-
 //Convenience typedefs
 typedef std::function<void()> job_t;
 typedef std::unique_lock<std::mutex> ulock;
@@ -25,7 +23,6 @@ public:
 	std::condition_variable condition;
 	std::deque<job_t> job_q;
 	std::mutex queue_mtx;
-	std::mutex pool_mtx;
 
 	void thread_fn();
 	void submit_job(job_t job);
@@ -44,7 +41,10 @@ inline void ThreadPool::thread_fn(){
 		{
 			ulock lock(queue_mtx);
 			condition.wait(lock, [this]{return !job_q.empty() || pool_terminate;});
-			if(pool_terminate && job_q.empty()) return;
+			if(job_q.empty()){ // standard allows for spurrious wake-ups
+				if(pool_terminate) return;
+				continue;
+			}
 			job = job_q.front();
 			job_q.pop_front();
 		}
@@ -62,7 +62,7 @@ inline void ThreadPool::submit_job(job_t job){
 
 inline void ThreadPool::shutdown(){
 	{
-		ulock lock(pool_mtx);
+		ulock lock(queue_mtx);
 		pool_terminate = true;
 	}
 	condition.notify_all();
