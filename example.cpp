@@ -2,12 +2,15 @@
 #include "thread_pool.h"
 #include <stdio.h>
 
+#define PRINT_N 5
+
 // A class with a function to be called that takes no arguments
 class MemberNoArg{
 public:
 	MemberNoArg(int a) : a{a} {};
 	int a;
 	void func() { printf("%d\n", a); };
+	void operator()() { func(); };
 	static void run_func(MemberNoArg* m) { m->func(); };
 };
 
@@ -25,7 +28,8 @@ void func(int a){
 
 int main(){
 	using namespace std;
-	printf("Hardware Concurrency: %d\n", thread::hardware_concurrency());
+	printf("Printing numbers 0-%d using a thread pool\n", PRINT_N);
+	printf("Using a C++ function:\n");
 	{
 		ThreadPool pool(2);
 		for(int i = 0; i < 5; i++){
@@ -33,7 +37,20 @@ int main(){
 			//pool.submit_job(std::bind(func, i)); // using std::bind()
 		}
 	}
-	printf("\n");
+	printf("Using the operator() of a class\n");
+	{
+		ThreadPool pool(2);
+		std::vector<MemberNoArg> jobs;
+
+		for(int i = 0; i < 5; i++){
+			jobs.push_back(MemberNoArg(i));
+		}
+		for(int i = 0; i < 5; i++){
+			pool.submit_job(jobs[i]); // using operator()
+		}
+		pool.shutdown();
+	}
+	printf("Using std::bind with a class's member function\n");
 	{
 		ThreadPool pool(2);
 		std::vector<MemberNoArg> jobs;
@@ -49,7 +66,7 @@ int main(){
 		//this could also be done using scope (destructor calls shutdown before jobs go out of scope)
 		pool.shutdown();
 	}
-	printf("\n");
+	printf("Using std::bind with a static function\n");
 	{
 		ThreadPool pool(2);
 		std::vector<MemberNoArg> jobs;
@@ -65,7 +82,7 @@ int main(){
 		//this could also be done using scope (destructor calls shutdown before jobs go out of scope)
 		pool.shutdown();
 	}
-	printf("\n");
+	printf("Using a lambda function\n");
 	{
 		ThreadPool pool;
 		MemberArg job;
